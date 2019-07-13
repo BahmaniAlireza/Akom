@@ -1,4 +1,3 @@
-FROM scratch
-ADD busybox.tar.xz /
+FROM scratch:1.31.0
 CMD ["sh"]
 
