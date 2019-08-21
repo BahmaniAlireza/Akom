@@ -1,48 +1,48 @@
-pipeline {
-  agent any
-  stages {
-    stage('Stage1') {
-      parallel {
-        stage('Stage1') {
-          steps {
-            sh 'echo "Stage1 ..."'
-          }
+podTemplate(label: 'mypod', containers: [
+    containerTemplate(name: 'docker', image: 'docker', ttyEnabled: true, command: 'cat'),
+    containerTemplate(name: 'kubectl', image: 'lachlanevenson/k8s-kubectl:v1.8.0', command: 'cat', ttyEnabled: true),
+    containerTemplate(name: 'helm', image: 'lachlanevenson/k8s-helm:latest', command: 'cat', ttyEnabled: true)
+  ],
+  volumes: [
+    hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock'),
+  ]) {
+    node('mypod') {
+
+        stage('do some Docker work') {
+            container('docker') {
+
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', 
+                        credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_HUB_USER', 
+                        passwordVariable: 'DOCKER_HUB_PASSWORD']]) {
+                    
+                    sh """
+                        docker pull ubuntu
+                        docker tag ubuntu ${env.DOCKER_HUB_USER}/ubuntu:${env.BUILD_NUMBER}
+                        """
+                    sh "docker login -u ${env.DOCKER_HUB_USER} -p ${env.DOCKER_HUB_PASSWORD} "
+                    sh "docker push ${env.DOCKER_HUB_USER}/ubuntu:${env.BUILD_NUMBER} "
+                }
+            }
         }
-        stage('Stage5') {
-          steps {
-            sh 'echo "Stage5"'
-          }
+
+        stage('do some kubectl work') {
+            container('kubectl') {
+
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', 
+                        credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_HUB_USER',
+                        passwordVariable: 'DOCKER_HUB_PASSWORD']]) {
+                    
+                    sh "kubectl get nodes"
+                }
+            }
         }
-        stage('Stage7') {
-          steps {
-            sh 'echo "Stage7"'
-          }
+        stage('do some helm work') {
+            container('helm') {
+
+               sh "helm ls"
+            }
         }
-      }
     }
-    stage('Stage2') {
-      parallel {
-        stage('Stage2') {
-          steps {
-            sh 'echo "Stage2"'
-          }
-        }
-        stage('Stage6') {
-          steps {
-            sh 'echo "Stage6"'
-          }
-        }
-      }
-    }
-    stage('Stage3') {
-      steps {
-        sh 'echo "Stage3"'
-      }
-    }
-    stage('Stage4') {
-      steps {
-        sh 'echo "Stage4"'
-      }
-    }
-  }
 }
